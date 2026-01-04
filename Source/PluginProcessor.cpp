@@ -134,12 +134,16 @@ void DesiSamplerProAudioProcessor::processBlock (juce::AudioBuffer<float>& buffe
             }
     }
 
-    // Synth Rendering
-    synth.renderNextBlock (buffer, midiMessages, 0, buffer.getNumSamples());
-
-    // Mix Preview
     juce::AudioSourceChannelInfo info (buffer);
+
+    // 1. Render Preview (Background/Transport)
+    // AudioTransportSource clears the buffer and fills it with source audio.
+    // If stopped, it fills with silence. This acts as our "clear buffer" step too.
     previewTransport.getNextAudioBlock (info);
+
+    // 2. Render Synth (Foreground)
+    // Synthesiser::renderNextBlock adds its output to the existing buffer content.
+    synth.renderNextBlock (buffer, midiMessages, 0, buffer.getNumSamples());
 
     // MIDI Passthrough
     if (!midiPassThrough)

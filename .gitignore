@@ -1,6 +1,4 @@
-build/
-Samples/
 *.pyc
+Samples/
 __pycache__/
 build/
-Samples/

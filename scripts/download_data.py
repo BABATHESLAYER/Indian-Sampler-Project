@@ -6,6 +6,7 @@ import math
 import shutil
 import json
 import requests
+import sys
 
 try:
     import mirdata
@@ -95,9 +96,36 @@ def sort_tracks(track_list, base_dir, download_dir):
 def main():
     parser = argparse.ArgumentParser(description="Download and organize Saraga data.")
     parser.add_argument('--test', action='store_true', help="Use dummy data for verification.")
+    parser.add_argument('--local-source', type=str, help="Path to a local folder containing manually downloaded files to sort.")
     args = parser.parse_args()
 
     base_dir = "Samples"
+
+    if args.local_source:
+        print(f"Scanning local source: {args.local_source}")
+        if not os.path.exists(args.local_source):
+            print(f"Error: Path {args.local_source} does not exist.")
+            return
+
+        # Simple crawl to find all wav/mp3 in the given folder
+        found_tracks = []
+        for root, dirs, files in os.walk(args.local_source):
+            for file in files:
+                if file.lower().endswith(('.wav', '.mp3')):
+                    # Create a dummy track object for our sorter
+                    # We try to guess instrument from filename since we lack metadata
+                    full_path = os.path.join(root, file)
+                    found_tracks.append({
+                        'instrument': file, # sort_tracks looks at this string
+                        'audio_path': full_path
+                    })
+
+        if found_tracks:
+            sort_tracks(found_tracks, base_dir, args.local_source)
+            print(f"Imported {len(found_tracks)} files from local source.")
+        else:
+            print("No audio files found in the specified local path.")
+        return
 
     if args.test:
         print("Running in TEST mode.")
@@ -197,18 +225,43 @@ def main():
 
                     if not os.path.exists(dest_path):
                         print(f"Downloading {filename} from {file_url}...")
-                        with requests.get(file_url, stream=True) as rf:
+                        print(f"Manual Link: {file_url}") # Provide link for manual DL
+
+                        try:
+                            response = requests.get(file_url, stream=True)
+                            total_length = response.headers.get('content-length')
+
                             with open(dest_path, 'wb') as f:
-                                shutil.copyfileobj(rf.raw, f)
-                        print("Download complete.")
+                                if total_length is None: # no content length header
+                                    f.write(response.content)
+                                else:
+                                    dl = 0
+                                    total_length = int(total_length)
+                                    for data in response.iter_content(chunk_size=4096):
+                                        dl += len(data)
+                                        f.write(data)
+                                        done = int(50 * dl / total_length)
+                                        sys.stdout.write(f"\r[{'=' * done}{' ' * (50-done)}] {int(dl/total_length*100)}%")
+                                        sys.stdout.flush()
+                            print("\nDownload complete.")
+                        except Exception as e:
+                            print(f"\nDownload failed: {e}")
+                            print(f"You can manually download the file from: {file_url}")
+                            print(f"Then place it in: {dest_path}")
                     else:
                         print(f"File {filename} already exists.")
             else:
                 print(f"Failed to fetch metadata for {name}: Status {r.status_code}")
+                print(f"Manual Page: https://zenodo.org/record/{zid}")
         except Exception as e:
             print(f"Error fetching {name}: {e}")
+            print(f"Manual Page: https://zenodo.org/record/{zid}")
 
-    print("Data acquisition complete.")
+    print("\nData acquisition complete.")
+    print("If you prefer to download manually, visit:")
+    print(" - Mridangam: https://zenodo.org/record/1265187")
+    print(" - Tabla: https://zenodo.org/record/1267023")
+    print("Then use: python3 scripts/download_data.py --local-source <path_to_downloaded_files>")
 
 if __name__ == "__main__":
     main()
