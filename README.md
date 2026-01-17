@@ -29,6 +29,17 @@ python3 scripts/download_data.py --test
 python3 scripts/download_data.py
 ```
 
+### Manual Data Download
+If you prefer to download the datasets manually (or if the script fails), you can get them here:
+
+*   **Saraga Carnatic Mridangam:** [https://zenodo.org/record/1265187](https://zenodo.org/record/1265187)
+*   **Saraga Hindustani Tabla:** [https://zenodo.org/record/1267023](https://zenodo.org/record/1267023)
+
+Once downloaded, unzip them into a folder and run:
+```bash
+python3 scripts/download_data.py --local-source "C:/Path/To/Your/Downloads"
+```
+
 ## Building on Windows (Visual Studio 2022)
 
 1.  Open Visual Studio 2022.
