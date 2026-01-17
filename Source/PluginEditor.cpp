@@ -3,22 +3,16 @@
 #include "StandaloneBridge.h"
 
 DesiSamplerProAudioProcessorEditor::DesiSamplerProAudioProcessorEditor (DesiSamplerProAudioProcessor& p)
-    : AudioProcessorEditor (&p), audioProcessor (p)
+    : AudioProcessorEditor (&p), audioProcessor (p), virtualKeyboard (p.keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard)
 {
     juce::LookAndFeel::setDefaultLookAndFeel (&lookAndFeel);
 
-    // Title
-    addAndMakeVisible (titleLabel);
-    titleLabel.setText ("DesiSampler Pro", juce::dontSendNotification);
-    titleLabel.setFont (juce::Font (24.0f, juce::Font::bold));
-    titleLabel.setJustificationType (juce::Justification::centred);
-    titleLabel.setColour (juce::Label::textColourId, juce::Colours::gold);
+    // --- Performance Panel ---
+    performancePanel = std::make_unique<juce::Component>();
+    performancePanel->addAndMakeVisible(browser);
+    performancePanel->addAndMakeVisible(virtualKeyboard);
+    performancePanel->addAndMakeVisible(midiLed);
 
-    // LED
-    addAndMakeVisible (midiLed);
-
-    // Browser
-    addAndMakeVisible (browser);
     browser.onLoadSample = [this](juce::File f, int octave, bool isMelodic)
     {
         audioProcessor.loadSample(f, octave, isMelodic);
@@ -28,27 +22,40 @@ DesiSamplerProAudioProcessorEditor::DesiSamplerProAudioProcessorEditor (DesiSamp
         audioProcessor.playPreview(f);
     };
 
-    // Controls
-    addAndMakeVisible (midiPassthroughToggle);
+    // --- Settings Panel ---
+    settingsPanel = std::make_unique<juce::Component>();
+    settingsPanel->addAndMakeVisible(midiPassthroughToggle);
     midiPassthroughToggle.setButtonText ("MIDI Pass-through");
     midiPassthroughToggle.onClick = [this] { audioProcessor.midiPassThrough = midiPassthroughToggle.getToggleState(); };
 
     // Audio Settings (Standalone Only)
-    // We access the device manager via our bridge helper.
     if (auto* deviceManager = getStandaloneDeviceManager())
     {
         audioSettings.reset (new juce::AudioDeviceSelectorComponent (*deviceManager,
-                                                                     0, 256,  // Input channels
-                                                                     0, 256,  // Output channels
-                                                                     true,    // Midi inputs
-                                                                     true,    // Midi outputs
-                                                                     true,    // Chip toggle
-                                                                     false)); // Hide Advanced
-        addAndMakeVisible (audioSettings.get());
+                                                                     0, 256,
+                                                                     0, 256,
+                                                                     true,
+                                                                     true,
+                                                                     true,
+                                                                     false));
+        settingsPanel->addAndMakeVisible (audioSettings.get());
     }
 
-    setSize (800, 600);
-    startTimer(30); // Poll for LED
+    // --- Main Tabs ---
+    addAndMakeVisible(mainTabs);
+    mainTabs.addTab("Play", juce::Colours::transparentBlack, performancePanel.get(), false);
+    mainTabs.addTab("Settings", juce::Colours::transparentBlack, settingsPanel.get(), false);
+
+    // --- Header Elements (Overlay or inside tabs?) ---
+    // We'll keep the Title separate above tabs
+    addAndMakeVisible (titleLabel);
+    titleLabel.setText ("DESI SAMPLER PRO // CYBER_EDIT", juce::dontSendNotification);
+    titleLabel.setFont (juce::FontOptions(24.0f, juce::Font::bold));
+    titleLabel.setJustificationType (juce::Justification::centredLeft);
+    titleLabel.setColour (juce::Label::textColourId, juce::Colour(0xFFFFD700));
+
+    setSize (900, 700);
+    startTimer(30);
 }
 
 DesiSamplerProAudioProcessorEditor::~DesiSamplerProAudioProcessorEditor()
@@ -58,37 +65,43 @@ DesiSamplerProAudioProcessorEditor::~DesiSamplerProAudioProcessorEditor()
 
 void DesiSamplerProAudioProcessorEditor::paint (juce::Graphics& g)
 {
-    // Rajasthani Palace Background Gradient
-    juce::Colour woodDark = juce::Colour(0xFF3E2723);
-    juce::Colour woodLight = juce::Colour(0xFF5D4037);
-
-    juce::ColourGradient grad (woodDark, 0.0f, 0.0f, woodLight, 0.0f, (float)getHeight(), false);
-    g.setGradientFill (grad);
-    g.fillAll();
-
-    // Ornate Border
-    g.setColour (juce::Colours::gold);
-    g.drawRect (getLocalBounds(), 4);
-    g.drawRect (getLocalBounds().reduced(6), 1);
+    g.fillAll(juce::Colour(0xFF1E1E1E)); // Dark background
 }
 
 void DesiSamplerProAudioProcessorEditor::resized()
 {
-    auto area = getLocalBounds().reduced(20);
+    auto area = getLocalBounds().reduced(10);
 
-    auto header = area.removeFromTop (50);
-    titleLabel.setBounds (header.removeFromLeft (200));
-    midiLed.setBounds (header.removeFromRight (40).reduced(5));
-    midiPassthroughToggle.setBounds (header);
+    // Title Bar
+    auto header = area.removeFromTop (40);
+    titleLabel.setBounds (header);
 
-    if (audioSettings)
+    // Tabs take rest
+    mainTabs.setBounds(area);
+
+    // -- Performance Layout --
+    if (performancePanel)
     {
-        auto settingsArea = area.removeFromTop(200);
-        audioSettings->setBounds(settingsArea);
-        area.removeFromTop(10);
+        auto pArea = performancePanel->getLocalBounds().reduced(15);
+        auto ledArea = pArea.removeFromTop(30).removeFromRight(30);
+        midiLed.setBounds(ledArea);
+
+        auto keyArea = pArea.removeFromBottom(120);
+        pArea.removeFromBottom(10);
+        virtualKeyboard.setBounds(keyArea);
+        browser.setBounds(pArea);
     }
 
-    browser.setBounds (area);
+    // -- Settings Layout --
+    if (settingsPanel)
+    {
+        auto sArea = settingsPanel->getLocalBounds().reduced(20);
+        midiPassthroughToggle.setBounds(sArea.removeFromTop(30));
+        sArea.removeFromTop(10);
+
+        if (audioSettings)
+            audioSettings->setBounds(sArea);
+    }
 }
 
 void DesiSamplerProAudioProcessorEditor::timerCallback()

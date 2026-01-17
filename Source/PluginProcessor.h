@@ -45,6 +45,9 @@ public:
     std::atomic<bool> midiActivityTrigger { false };
     bool midiPassThrough = false;
 
+    // Shared MIDI State for Virtual Keyboard
+    juce::MidiKeyboardState keyboardState;
+
 private:
     juce::Synthesiser synth;
     juce::AudioFormatManager formatManager;

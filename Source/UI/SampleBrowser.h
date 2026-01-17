@@ -17,6 +17,10 @@ public:
         loadButton.setButtonText("Load Sample");
         loadButton.addListener(this);
 
+        addAndMakeVisible(folderButton);
+        folderButton.setButtonText("Select Folder...");
+        folderButton.addListener(this);
+
         // Setup Transport for Preview
         // formatManager.registerBasicFormats(); // moved to Processor
 
@@ -35,12 +39,10 @@ public:
     void refreshList()
     {
         files.clear();
-        // Look in Samples directory relative to executable or project root
-        juce::File samplesDir = juce::File::getCurrentWorkingDirectory().getChildFile("Samples");
 
-        // Recursively find audio files
+        // Recursively find audio files in currentRoot
         juce::Array<juce::File> results;
-        samplesDir.findChildFiles(results, juce::File::findFiles, true, "*.wav;*.mp3;*.aiff");
+        currentRoot.findChildFiles(results, juce::File::findFiles, true, "*.wav;*.mp3;*.aiff");
 
         for (auto f : results)
             files.add(f);
@@ -53,7 +55,9 @@ public:
         auto area = getLocalBounds().reduced(10);
         auto topBar = area.removeFromTop(40);
 
-        octaveSelector.setBounds(topBar.removeFromLeft(100));
+        folderButton.setBounds(topBar.removeFromLeft(120));
+        topBar.removeFromLeft(10);
+        octaveSelector.setBounds(topBar.removeFromLeft(80));
         topBar.removeFromLeft(10);
         modeToggle.setBounds(topBar.removeFromLeft(150));
         topBar.removeFromLeft(10);
@@ -78,6 +82,23 @@ public:
                 }
             }
         }
+        else if (b == &folderButton)
+        {
+            fileChooser = std::make_unique<juce::FileChooser> ("Select Sample Folder...",
+                                                               juce::File::getCurrentWorkingDirectory(),
+                                                               "*");
+            auto folderFlags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories;
+
+            fileChooser->launchAsync (folderFlags, [this] (const juce::FileChooser& fc)
+            {
+                auto file = fc.getResult();
+                if (file != juce::File{})
+                {
+                    currentRoot = file;
+                    refreshList();
+                }
+            });
+        }
     }
 
     void listBoxItemClicked(int row, const juce::MouseEvent&) override
@@ -96,10 +117,9 @@ public:
         if (juce::isPositiveAndBelow(rowNumber, files.size()))
         {
             auto f = files[rowNumber];
-            juce::File root = juce::File::getCurrentWorkingDirectory().getChildFile("Samples");
 
-            // Draw Filename
-            g.drawText (f.getRelativePathFrom(root), 30, 0, width - 30, height, juce::Justification::centredLeft, true);
+            // Draw Filename relative to root if possible
+            g.drawText (f.getRelativePathFrom(currentRoot), 30, 0, width - 30, height, juce::Justification::centredLeft, true);
 
             // Draw "Play" Icon on the left
             g.setColour(juce::Colours::lightgreen);
@@ -130,7 +150,11 @@ public:
 private:
     juce::ListBox listBox;
     juce::TextButton loadButton;
+    juce::TextButton folderButton;
     juce::ToggleButton modeToggle;
     juce::ComboBox octaveSelector;
     juce::Array<juce::File> files;
+
+    juce::File currentRoot { juce::File::getCurrentWorkingDirectory().getChildFile("Samples") };
+    std::unique_ptr<juce::FileChooser> fileChooser;
 };

@@ -123,6 +123,9 @@ void DesiSamplerProAudioProcessor::processBlock (juce::AudioBuffer<float>& buffe
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
+    // Merge Virtual Keyboard MIDI
+    keyboardState.processNextMidiBuffer(midiMessages, 0, buffer.getNumSamples(), true);
+
     // LED Trigger logic
     if (!midiMessages.isEmpty())
     {

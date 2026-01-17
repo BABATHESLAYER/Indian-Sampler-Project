@@ -6,18 +6,39 @@ class DesiLookAndFeel : public juce::LookAndFeel_V4
 public:
     DesiLookAndFeel()
     {
-        // Define Rajasthani Palette
-        static const juce::Colour darkWood = juce::Colour(0xFF3E2723);
-        static const juce::Colour brightGold = juce::Colour(0xFFFFD700);
-        static const juce::Colour deepRed = juce::Colour(0xFF880E4F);
+        // "Cyber-Desi" Palette
+        static const juce::Colour darkGrey = juce::Colour(0xFF1E1E1E);
+        static const juce::Colour darkerGrey = juce::Colour(0xFF121212);
+        static const juce::Colour neonGold = juce::Colour(0xFFFFD700);
+        static const juce::Colour cyberBlue = juce::Colour(0xFF00E5FF);
+        static const juce::Colour lightText = juce::Colour(0xFFEEEEEE);
 
-        setColour(juce::ResizableWindow::backgroundColourId, darkWood);
-        setColour(juce::Slider::thumbColourId, brightGold);
-        setColour(juce::Slider::trackColourId, deepRed);
-        setColour(juce::TextButton::buttonColourId, darkWood.brighter(0.1f));
-        setColour(juce::TextButton::textColourOffId, brightGold);
-        setColour(juce::ListBox::backgroundColourId, darkWood.darker(0.3f));
-        setColour(juce::ListBox::textColourId, brightGold);
+        // General
+        setColour(juce::ResizableWindow::backgroundColourId, darkGrey);
+        setColour(juce::Label::textColourId, lightText);
+        setColour(juce::GroupComponent::textColourId, neonGold);
+        setColour(juce::GroupComponent::outlineColourId, neonGold.withAlpha(0.6f));
+
+        // Buttons
+        setColour(juce::TextButton::buttonColourId, darkerGrey);
+        setColour(juce::TextButton::buttonOnColourId, neonGold.withAlpha(0.2f));
+        setColour(juce::TextButton::textColourOffId, neonGold);
+        setColour(juce::TextButton::textColourOnId, juce::Colours::white);
+
+        // ListBox
+        setColour(juce::ListBox::backgroundColourId, darkerGrey);
+        setColour(juce::ListBox::outlineColourId, neonGold.withAlpha(0.3f));
+        setColour(juce::ListBox::textColourId, lightText);
+
+        // Sliders
+        setColour(juce::Slider::thumbColourId, neonGold);
+        setColour(juce::Slider::rotarySliderFillColourId, cyberBlue);
+        setColour(juce::Slider::rotarySliderOutlineColourId, darkerGrey.brighter(0.1f));
+
+        // TabbedComponent
+        setColour(juce::TabbedComponent::backgroundColourId, darkGrey);
+        setColour(juce::TabbedComponent::outlineColourId, neonGold);
+        setColour(juce::TabbedButtonBar::frontTextColourId, neonGold);
     }
 
     void drawRotarySlider (juce::Graphics& g, int x, int y, int width, int height, float sliderPos,
@@ -31,41 +52,72 @@ public:
         auto rw = radius * 2.0f;
         auto angle = rotaryStartAngle + sliderPos * (rotaryEndAngle - rotaryStartAngle);
 
-        // Gold Ring
-        g.setColour (juce::Colours::gold);
-        g.drawEllipse (rx, ry, rw, rw, 2.0f);
+        // Dark track
+        g.setColour (juce::Colours::black);
+        g.drawEllipse (rx, ry, rw, rw, 4.0f);
 
-        // Inner Wood Circle
-        g.setColour (findColour(juce::ResizableWindow::backgroundColourId).darker(0.2f));
-        g.fillEllipse (rx + 2, ry + 2, rw - 4, rw - 4);
-
-        // Pointer (Vector style)
+        // Active Arc (Cyber Blue)
         juce::Path p;
-        auto pointerLength = radius * 0.8f;
-        auto pointerThickness = 3.0f;
-        p.addRectangle (-pointerThickness * 0.5f, -radius, pointerThickness, pointerLength);
-        p.applyTransform (juce::AffineTransform::rotation (angle).translated (centreX, centreY));
-
-        g.setColour (juce::Colours::gold);
+        p.addArc (rx, ry, rw, rw, rotaryStartAngle, angle, true);
+        juce::PathStrokeType (4.0f).createStrokedPath (p, p);
+        g.setColour (findColour(juce::Slider::rotarySliderFillColourId));
         g.fillPath (p);
+
+        // Neon Gold Indicator
+        juce::Path pointer;
+        auto pointerLength = radius * 0.9f;
+        auto pointerThickness = 3.0f;
+        pointer.addRectangle (-pointerThickness * 0.5f, -radius, pointerThickness, pointerLength);
+        pointer.applyTransform (juce::AffineTransform::rotation (angle).translated (centreX, centreY));
+        g.setColour (findColour(juce::Slider::thumbColourId));
+        g.fillPath (pointer);
     }
 
     void drawButtonBackground (juce::Graphics& g, juce::Button& button, const juce::Colour& backgroundColour,
                                bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override
     {
-        auto cornerSize = 6.0f;
+        auto cornerSize = 4.0f; // Sharp corners
         auto bounds = button.getLocalBounds().toFloat().reduced (0.5f, 0.5f);
 
-        auto baseColour = backgroundColour.withMultipliedSaturation (button.hasKeyboardFocus (true) ? 1.3f : 0.9f)
-                                          .withMultipliedAlpha (button.isEnabled() ? 1.0f : 0.5f);
-
-        if (shouldDrawButtonAsDown || shouldDrawButtonAsHighlighted)
-            baseColour = baseColour.contrasting (shouldDrawButtonAsDown ? 0.2f : 0.05f);
+        auto baseColour = backgroundColour;
+        if (shouldDrawButtonAsDown)
+            baseColour = baseColour.brighter(0.2f);
+        else if (shouldDrawButtonAsHighlighted)
+            baseColour = baseColour.brighter(0.1f);
 
         g.setColour (baseColour);
         g.fillRoundedRectangle (bounds, cornerSize);
 
-        g.setColour (juce::Colours::gold);
+        // Glowing Border
+        g.setColour (findColour(juce::TextButton::textColourOffId).withAlpha(0.6f));
         g.drawRoundedRectangle (bounds, cornerSize, 1.5f);
+    }
+
+    // Custom Tab Look
+    void drawTabButton (juce::TabBarButton& button, juce::Graphics& g, bool isMouseOver, bool isMouseDown) override
+    {
+        const auto activeArea = button.getActiveArea();
+        auto b = button.getLocalBounds().toFloat();
+
+        // Background
+        g.setColour(button.getTabbedButtonBar().getTabBackgroundColour(button.getIndex()));
+        g.fillRect(b);
+
+        // Border
+        g.setColour(juce::Colours::black.withAlpha(0.5f));
+        g.drawRect(b, 1.0f);
+
+        // Active Indicator (Neon Gold underline)
+        if (button.isFrontTab())
+        {
+            g.setColour(findColour(juce::TabbedComponent::outlineColourId));
+            g.fillRect(b.removeFromBottom(3.0f));
+        }
+
+        // Text
+        g.setColour(button.isFrontTab() ? findColour(juce::TabbedButtonBar::frontTextColourId)
+                                        : findColour(juce::TabbedButtonBar::tabTextColourId));
+        g.setFont(16.0f);
+        g.drawText(button.getButtonText(), activeArea, juce::Justification::centred, true);
     }
 };
